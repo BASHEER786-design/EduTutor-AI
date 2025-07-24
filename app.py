@@ -1,38 +1,41 @@
 # app.py
 import streamlit as st
 from ibm_ai import get_ai_response
-import pyttsx3
 from fpdf import FPDF
 import base64
+import os
 
-# Page config
+# Function to sanitize text for PDF (Latin-1 encoding safe)
+def sanitize_text(text):
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
+# Page setup
 st.set_page_config(page_title="EduTutor-AI", layout="centered", page_icon="📘")
 
-# Initialize chat history
+# Session state for chat
 if "history" not in st.session_state:
     st.session_state.history = []
 
 st.title("📘 EduTutor AI")
-st.caption("Ask me any educational question. I'm here to help you learn! 💡")
+st.caption("Ask any educational question and get instant answers powered by AI 💡")
 
-# Subject selector
-subject = st.selectbox("🎓 Choose Subject (optional)", ["General", "Math", "Science", "History", "Technology"])
+# Subject dropdown
+subject = st.selectbox("📚 Select Subject (optional)", ["General", "Math", "Science", "History", "Technology"])
 instruction = "" if subject == "General" else f"You are an expert in {subject}. "
 
-# Text input
+# Character-limited input box
 char_limit = 300
-user_input = st.text_input("🧑‍🎓 Your Question:", placeholder="e.g. What is a binary search algorithm?", max_chars=char_limit)
+user_input = st.text_input("🧑‍🎓 Your Question:", placeholder="e.g. What is Newton's second law?", max_chars=char_limit)
 
-# Warn on limit
 if user_input and len(user_input) > char_limit * 0.9:
     st.warning(f"You're approaching the {char_limit}-character limit.")
 
-# Clear chat
+# Clear history button
 if st.button("🧹 Clear History"):
     st.session_state.history = []
-    st.success("Chat history cleared!")
+    st.success("Chat history cleared.")
 
-# Generate response
+# Get AI response
 if user_input:
     with st.spinner("Thinking..."):
         try:
@@ -42,7 +45,7 @@ if user_input:
         except Exception as e:
             st.error(f"❌ Error: {e}")
 
-# Chat history
+# Display chat history
 if st.session_state.history:
     st.subheader("🗂️ Chat History")
 
@@ -51,19 +54,30 @@ if st.session_state.history:
             st.markdown(f"**Answer:**\n\n{a}", unsafe_allow_html=True)
             st.code(a, language="text")
 
-            # PDF Download
+            # Generate PDF
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, f"Question: {q}\n\nAnswer: {a}")
-            pdf_file = f"answer_{i}.pdf"
-            pdf.output(pdf_file)
 
-            with open(pdf_file, "rb") as f:
-                pdf_bytes = f.read()
-                b64 = base64.b64encode(pdf_bytes).decode()
-                href = f'<a href="data:application/pdf;base64,{b64}" download="{pdf_file}">📄 Download PDF</a>'
+            clean_q = sanitize_text(q)
+            clean_a = sanitize_text(a)
+            pdf.multi_cell(0, 10, f"Question: {clean_q}\n\nAnswer: {clean_a}")
+
+            pdf_file = f"answer_{i}.pdf"
+            try:
+                pdf.output(pdf_file)
+
+                # Encode PDF to base64 for download
+                with open(pdf_file, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode()
+                href = f'<a href="data:application/octet-stream;base64,{b64}" download="{pdf_file}">📄 Download PDF</a>'
                 st.markdown(href, unsafe_allow_html=True)
+
+                # Optional: Remove the file after encoding (to keep Streamlit Cloud clean)
+                os.remove(pdf_file)
+
+            except Exception as e:
+                st.error(f"PDF generation failed: {e}")
 
 # Footer
 st.markdown("---")
