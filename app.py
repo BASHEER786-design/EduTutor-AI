@@ -51,12 +51,6 @@ if st.session_state.history:
             st.markdown(f"**Answer:**\n\n{a}", unsafe_allow_html=True)
             st.code(a, language="text")
 
-            # Text to Speech
-            if st.button(f"🔊 Speak Answer {i}"):
-                tts = pyttsx3.init()
-                tts.say(a)
-                tts.runAndWait()
-
             # PDF Download
             pdf = FPDF()
             pdf.add_page()
