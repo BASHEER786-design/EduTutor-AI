@@ -27,6 +27,7 @@ def get_ai_response(user_input):
             {"role": "user", "content": user_input}
         ],
         temperature=0.7,
-        max_tokens=150
+        max_tokens=1500
     )
     return response.choices[0].message.content.strip()
+
